@@ -1,0 +1,428 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r Libraries}
+library("geomorph")
+library("readr")
+library("readxl")
+library("ggplot2")
+library("patchwork")
+library("stringr")
+library("dplyr")
+library("RColorBrewer")
+library("cowplot")
+library("ggpubr")
+```
+
+```{r Background Theme}
+# theme_black = function(base_size = 12, base_family = "") {
+# 
+#   theme_grey(base_size = base_size, base_family = base_family) %+replace%
+# 
+#     theme(
+#       # Specify axis options
+#       axis.line = element_blank(),
+#       axis.text.x = element_text(size = base_size*0.8, color = "white", lineheight = 0.9),
+#       axis.text.y = element_text(size = base_size*0.8, color = "white", lineheight = 0.9),
+#       axis.ticks = element_line(color = "white", size  =  0.2),
+#       axis.title.x = element_text(size = base_size, color = "white", margin = margin(0, 10, 0, 0)),
+#       axis.title.y = element_text(size = base_size, color = "white", angle = 90, margin = margin(0, 10, 0, 0)),
+#       axis.ticks.length = unit(0.3, "lines"),
+#       # Specify legend options
+#       legend.background = element_rect(color = NA, fill = "black"),
+#       legend.key = element_rect(color = "black",  fill = "black"),
+#       legend.key.size = unit(1.2, "lines"),
+#       legend.key.height = NULL,
+#       legend.key.width = NULL,
+#       legend.text = element_text(size = base_size*0.8, color = "white"),
+#       legend.title = element_text(size = base_size*0.8, face = "bold", hjust = 0, color = "white"),
+#       legend.position = "right",
+#       legend.text.align = NULL,
+#       legend.title.align = NULL,
+#       legend.direction = "vertical",
+#       legend.box = NULL,
+#       # Specify panel options
+#       panel.background = element_rect(fill = "black", color  =  NA),
+#       panel.border = element_rect(fill = NA, color = "white"),
+#       panel.grid.major = element_blank(),
+#       panel.grid.minor = element_blank(),
+#       panel.margin = unit(0.5, "lines"),
+#       # Specify facetting options
+#       strip.background = element_rect(fill = "grey30", color = "grey10"),
+#       strip.text.x = element_text(size = base_size*0.8, color = "white"),
+#       strip.text.y = element_text(size = base_size*0.8, color = "white",angle = -90),
+#       # Specify plot options
+#       plot.background = element_rect(color = "black", fill = "black"),
+#       plot.title = element_text(size = base_size*1.2, color = "white"),
+#       plot.margin = unit(rep(1, 4), "lines")
+# 
+#     )
+# 
+# }
+
+```
+
+```{r Reading in files/creating landmarks}
+setwd("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks")
+files <- as.data.frame(dir(pattern = ".csv", full.names = TRUE, ignore.case = TRUE))
+names(files)[1] <- 'files'
+files$files<- as.character(files$files)
+samples = files$files
+test = read.csv(files$files[1])
+
+# read in landmark data
+l = nrow(test) # number of landmarks
+d = 3 # number of dimensions (2D or 3D)
+s = length(samples) # number of specimens
+
+LMs = array(dim=c(l, d, s)) 
+lables = test$label
+vert_label <- as.factor(sub(".*_(Vert\\d+)(?:_Landmarks)?\\.csv$", "\\1", files$files)) #define some groups for plotting
+
+# Read in each file and stack into LM array
+for (i in 1:s) {
+  data <- read.csv(files$files[i], stringsAsFactors = FALSE)
+  print(paste("Processing file:", files$files[i]))
+  print(dim(data))
+  print(colnames(data)[4:6])
+  print(head(data[, 4:6]))
+  marks <- as.array(as.matrix(data[, 4:6]))
+  print(dim(marks))
+  LMs[,,i] <- marks
+}
+
+# Label the rows with the file names
+dimnames(LMs) = list(lables, c("x", "y", "z"), samples)
+
+VertebraeLandmarkData <- read_csv("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/VertebraeLandmarkData/VertebraeLandmarkData.csv")
+files$FileName <- files$file
+merged <- merge(files, VertebraeLandmarkData, by = "FileName", all.x = TRUE)
+
+# Links
+VertLinks <- read.csv("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/VertLinks/VertLinks.csv", header = FALSE)
+```
+
+```{r Procrustes Superimposition/PCA}
+# run Procrustes Superimposition
+gpa <- gpagen(LMs)
+
+plotAllSpecimens(gpa$coords, links = VertLinks, mean = TRUE)
+
+plotOutliers(gpa$coords, inspect.outliers = T)
+
+PCA <- gm.prcomp(gpa$coords)
+cex_values <- scales::rescale(merged$SL, to = c(0.5, 2))  # from the 'scales' package
+plot(PCA, pch = 21, bg = vert_label, cex = cex_values)
+legend("topleft", pch = 22, pt.bg = unique(vert_label), legend = unique(vert_label), horiz = FALSE)
+
+# Extract percent variance explained
+percent_var <- (PCA$sdev^2) / sum(PCA$sdev^2) * 100
+
+pc1_var <- round(percent_var[1], 1)
+pc2_var <- round(percent_var[2], 1)
+
+pc_scores <- PCA$x
+
+plot(pc_scores[,1], pc_scores[,2],
+     pch = 21, bg = vert_label, cex = cex_values,
+     xlab = paste0("PC1 (", pc1_var, "%)"),
+     ylab = paste0("PC2 (", pc2_var, "%)"))
+legend("topleft", pch = 22, pt.bg = unique(vert_label), legend = unique(vert_label), horiz = FALSE)
+
+
+pc1_var <- round(percent_var[2], 1)
+pc2_var <- round(percent_var[3], 1)
+
+plot(pc_scores[,2], pc_scores[,3],
+     pch = 21, bg = vert_label, cex = cex_values,
+     xlab = paste0("PC2 (", pc1_var, "%)"),
+     ylab = paste0("PC3 (", pc2_var, "%)"))
+legend("topleft", pch = 22, pt.bg = unique(vert_label), legend = unique(vert_label), horiz = FALSE)
+
+```
+
+```{r Mean Shape/Extreme Shapes}
+# Get mean shape and shape at max PC1
+ref <- mshape(gpa$coords)
+target <- PCA$shapes$shapes.comp1$max  # or use $min for the other direction
+# Calculate displacement vectors per landmark
+pc1vec <- target - ref  # array: [landmark, dim]
+# Compute magnitude of displacement (Euclidean distance) per landmark
+disp <- sqrt(rowSums(pc1vec^2))
+
+# Display how much each landmark contributes to the variation in PC1
+barplot(disp, main = "Landmark Contributions to PC1",
+        xlab = "Landmark", ylab = "Displacement Magnitude")
+
+mag <- 3# scaling factor, increase to exaggerate displacement
+target_scaled <- ref + (target - ref) * mag
+
+# Project and plot onto XY
+# Combine both sets of coordinates to get limits
+x_range <- range(c(ref[,1], target_scaled[,1]))
+y_range <- range(c(ref[,2], target_scaled[,2]))
+plot(ref[,1], ref[,2], asp = 1, pch = 21, bg = "gray", 
+     main = "PC1 Shape Change: XY Projection",
+     xlab = "X", ylab = "Y", xlim = x_range, ylim = y_range)
+arrows(ref[,1], ref[,2], target_scaled[,1], target_scaled[,2], 
+       col = "black", lwd = 2, length = 0.1)
+points(target_scaled[,1], target_scaled[,2], pch = 21, bg = "black")
+#legend("topleft", legend = names(group_colors), fill = group_colors, border = "black", cex = 0.5,  bty = "n")
+text(ref[,1], ref[,2], labels = 1:nrow(ref), pos = 3, cex = 0.7)
+
+# Project and plot onto XZ
+x_range <- range(c(ref[,1], target_scaled[,1]))
+y_range <- range(c(ref[,3], target_scaled[,3]))
+plot(ref[,1], ref[,3], asp = 1, pch = 21, bg = "gray",
+     main = "PC1 Shape Change: XZ Projection",
+     xlab = "X", ylab = "Z", xlim = x_range, ylim = y_range)
+arrows(ref[,1], ref[,3],
+       target_scaled[,1], target_scaled[,3],
+       col = "black", lwd = 2, length = 0.1)
+points(target_scaled[,1], target_scaled[,3], pch = 21, bg = "black")
+#legend("topleft", legend = names(group_colors), fill = group_colors, border = "black", cex = 0.5,  bty = "n")
+text(ref[,1], ref[,3], labels = 1:nrow(ref), pos = 3, cex = 0.7)
+
+# Project and plot onto YZ
+x_range <- range(c(ref[,2], target_scaled[,2]))
+y_range <- range(c(ref[,3], target_scaled[,3]))
+plot(ref[,2], ref[,3], asp = 1, pch = 21, bg = "gray",
+     main = "PC1 Shape Change: YZ Projection",
+     xlab = "Y", ylab = "Z", xlim = x_range, ylim = y_range)
+arrows(ref[,2], ref[,3], target_scaled[,2], target_scaled[,3], 
+       col = "black", lwd = 2, length = 0.1)
+points(target[,2], target[,3], pch = 21, bg = "black")
+text(ref[,2], ref[,3], labels = 1:nrow(ref), pos = 3, cex = 0.7)
+```
+
+```{r Landmark Contributions}
+#####Extract Weights
+# PCA$sdev contains the standard deviations for each PC
+sdev <- PCA$sdev
+# Compute variance (eigenvalues)
+variance <- sdev^2
+# Proportion of variance explained by each PC
+prop_var <- variance / sum(variance)
+# Percent variance explained
+percent_var <- prop_var * 100
+#print(percent_var)
+
+# Number of landmarks
+n_landmarks <- dim(PCA$rotation)[1] / 3
+# Get PC loadings for each axis (x, y, z) per landmark
+PC_loadings <- PCA$rotation  # matrix with rows = coords (X1, Y1, Z1, X2, ...) and columns = PCs
+# Initialize matrix to store contributions per landmark
+landmark_contributions <- data.frame(Landmark = 1:n_landmarks)
+
+# Loop over first few PCs (say, first 3)
+for (pc in 1:15) {
+  # Extract loadings for PC `pc`, grouped by 3 rows per landmark
+  pc_vector <- PC_loadings[, pc]
+  
+  # Sum squared loadings for X, Y, Z of each landmark
+  contribution <- rowSums(matrix(pc_vector, ncol = 3, byrow = TRUE)^2)
+  pc_label <- paste0("PC", pc, "_", round(percent_var[pc], 1), "%")
+  # Add to dataframe
+  landmark_contributions[[pc_label]] <- contribution
+}
+landmark_contributions$Label <- test$label
+```
+
+```{r Shape Predictions}
+
+#Shape Predictions
+PC <- PCA$x[,1]
+preds <- shape.predictor(gpa$coords, x= PC, Intercept = FALSE,
+                         pred1 = min(PC),
+                         pred2 = max(PC)) # PC 1 extremes, more technically
+par(mfrow=c(1, 2))
+plotRefToTarget(ref, preds$pred1, links = VertLinks)
+mtext("PC1 - Min.")
+plotRefToTarget(ref, preds$pred2, links = VertLinks)
+mtext("PC1 - Max.")
+
+
+#Shape Predictions
+PC <- PCA$x[,2]
+preds <- shape.predictor(gpa$coords, x= PC, Intercept = FALSE, 
+                         pred1 = min(PC),  
+                         pred2 = max(PC)) # PC 1 extremes, more technically
+par(mfrow=c(1, 2))
+plotRefToTarget(ref, preds$pred1, links = VertLinks)
+mtext("PC2 - Min.")
+plotRefToTarget(ref, preds$pred2, links = VertLinks)
+mtext("PC2 - Max.")
+
+#Shape Predictions
+PC <- PCA$x[,3]
+preds <- shape.predictor(gpa$coords, x= PC, Intercept = FALSE, 
+                         pred1 = min(PC),  
+                         pred2 = max(PC)) # PC 1 extremes, more technically
+par(mfrow=c(1, 2))
+plotRefToTarget(ref, preds$pred1, links = VertLinks)
+mtext("PC3 - Min.")
+plotRefToTarget(ref, preds$pred2, links = VertLinks)
+mtext("PC3 - Max.")
+```
+
+```{r save PC3 min and max as pictures}
+png("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/PC3_Min.png", width = 5, height = 5, units = "in", res = 600)
+plotRefToTarget(ref, preds$pred1, links = VertLinks)
+mtext("PC3 - Min.")
+dev.off()
+
+png("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/PC3_Max.png", width = 5, height = 5, units = "in", res = 600)
+plotRefToTarget(ref, preds$pred2, links = VertLinks)
+mtext("PC3 - Max.")
+dev.off()
+```
+
+```{r inverse color plots}
+# Links
+VertLinks <- read.csv("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/VertLinks/VertLinks.csv", header = FALSE)
+
+# Set black background globally
+par(bg = "black", col.axis = "white", col.lab = "white", col.main = "white", col.sub = "white", fg = "white")
+
+#Shape Predictions - PC1
+PC <- PCA$x[,1]
+preds <- shape.predictor(gpa$coords, x = PC, Intercept = FALSE,
+                         pred1 = min(PC),
+                         pred2 = max(PC))
+par(mfrow = c(1, 2), bg = "black", fg = "white")
+plotRefToTarget(ref, preds$pred1, links = VertLinks,
+                gridPars = gridPar(pt.bg = "white", pt.size = 1.5,
+                                   link.col = "white", tar.link.col = "white",
+                                   grid.col = "white", tar.pt.bg = "white"))
+mtext("PC1 - Min.", col = "white")
+plotRefToTarget(ref, preds$pred2, links = VertLinks,
+                gridPars = gridPar(pt.bg = "white", pt.size = 1.5,
+                                   link.col = "white", tar.link.col = "white",
+                                   grid.col = "white", tar.pt.bg = "white"))
+mtext("PC1 - Max.", col = "white")
+
+#Shape Predictions - PC2
+PC <- PCA$x[,2]
+preds <- shape.predictor(gpa$coords, x = PC, Intercept = FALSE,
+                         pred1 = min(PC),
+                         pred2 = max(PC))
+par(mfrow = c(1, 2), bg = "black", fg = "white")
+plotRefToTarget(ref, preds$pred1, links = VertLinks,
+                gridPars = gridPar(pt.bg = "white", pt.size = 1.5,
+                                   link.col = "white", tar.link.col = "white",
+                                   grid.col = "white", tar.pt.bg = "white"))
+mtext("PC2 - Min.", col = "white")
+plotRefToTarget(ref, preds$pred2, links = VertLinks,
+                gridPars = gridPar(pt.bg = "white", pt.size = 1.5,
+                                   link.col = "white", tar.link.col = "white",
+                                   grid.col = "white", tar.pt.bg = "white"))
+mtext("PC2 - Max.", col = "white")
+
+#Shape Predictions - PC3
+PC <- PCA$x[,3]
+preds <- shape.predictor(gpa$coords, x = PC, Intercept = FALSE,
+                         pred1 = min(PC),
+                         pred2 = max(PC))
+# Saving PC3 Extremes
+png("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/PC3_Min.png", width = 800, height = 600, bg = "white")
+par(bg = "white", fg = "black")
+plotRefToTarget(ref, preds$pred1, links = VertLinks,
+                gridPars = gridPar(pt.bg = "black", pt.size = 1.5,
+                                   link.col = "black", tar.link.col = "black",
+                                   grid.col = "black", tar.pt.bg = "black"))
+mtext("PC3 - Min.", col = "black")
+dev.off()
+
+png("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/PC3_Max.png", width = 800, height = 600, bg = "white")
+par(bg = "white", fg = "black")
+plotRefToTarget(ref, preds$pred2, links = VertLinks,
+                gridPars = gridPar(pt.bg = "black", pt.size = 1.5,
+                                   link.col = "black", tar.link.col = "black",
+                                   grid.col = "black", tar.pt.bg = "black"))
+mtext("PC3 - Max.", col = "black")
+dev.off()
+```
+
+```{r PCA Plots}
+pca_df <- data.frame(
+  PC1 = pc_scores[, 1],
+  PC2 = pc_scores[, 2],
+  PC3 = pc_scores[, 3],
+  vert_label = vert_label,
+  SL = merged$SL,
+  cex_values = cex_values
+)
+
+vert_colors <- c("#E69F00", "#F0E442", "#56B4E9", "#0072B2", "#9955BB")
+
+PC1v2plot <- ggplot(pca_df, aes(x = PC1, y = PC2, fill = vert_label, size = cex_values)) +
+  geom_point(shape = 21, color = "black", alpha = 0.8) +
+  scale_size_continuous(
+    range = c(1, 6),
+    name = "SL",
+    labels = c("33mm", "58mm", "75mm", "95mm")
+  ) +
+  scale_fill_manual(                                        
+    values = vert_colors,
+    name = "Vertebra",
+    labels = c("0% VL", "25% VL", "50% VL", "75% VL", "100% VL")
+  ) +
+  guides(
+    fill = guide_legend(override.aes = list(size = 5), nrow = 1),  # <-- nrow = 1 makes it horizontal
+    size = guide_legend(nrow = 1)                                   # <-- same for size legend
+  ) +
+  labs(
+    x = paste0("PC1 (", round(percent_var[1], 1), "%)"),
+    y = paste0("PC2 (", round(percent_var[2], 1), "%)"),
+  ) +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 8),
+    axis.text  = element_text(size = 7)
+  ) + 
+  coord_fixed(ratio = 1.25)
+
+PC2v3plot <- ggplot(pca_df, aes(x = PC2, y = PC3, fill = vert_label, size = cex_values)) +
+  geom_point(shape = 21, color = "black", alpha = 0.8) +
+  scale_size_continuous(
+    range = c(1, 6),
+    name = "SL",
+    labels = c("33mm", "58mm", "75mm", "95mm")
+  ) +
+  scale_fill_manual(                                         
+    values = vert_colors,
+    name = "Vertebra",
+    labels = c("0% VL", "25% VL", "50% VL", "75% VL", "100% VL")
+  ) +
+  guides(
+    fill = guide_legend(override.aes = list(size = 5), nrow = 1),
+    size = guide_legend(nrow = 1)
+  ) +
+  labs(
+    x = paste0("PC2 (", round(percent_var[2], 1), "%)"),
+    y = paste0("PC3 (", round(percent_var[3], 1), "%)"),
+  ) +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 8),
+    axis.text  = element_text(size = 7)
+  ) + 
+  coord_fixed(ratio = 1.25)
+
+combined_plot <- PC1v2plot / PC2v3plot + 
+  plot_layout(guides = "collect") &        # & applies to all plots
+  theme(
+    legend.position = "bottom",            # <-- moves legend below
+    legend.box = "vertical"               # <-- stacks the two legends (fill + size)
+  )
+
+ggsave("GMPCAPlotsCombined.png", plot = combined_plot, width = 6, height = 7.5, units = "in")
+```
+
+

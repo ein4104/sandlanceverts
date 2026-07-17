@@ -1,0 +1,13 @@
+"id","label","associatedNodeID","pos_x","pos_y","pos_z","selected","locked","visibility","positionStatus","vert_number"
+"1","Ahexapterus_9_18um_Al1_Triangle_Vert5-1","vtkMRMLScalarVolumeNode1",23.3894755095776,20.663947498743,82.2069453401843,TRUE,FALSE,TRUE,"defined",5
+"2","Ahexapterus_9_18um_Al1_Triangle_Vert5-2","vtkMRMLScalarVolumeNode1",23.9414043105836,20.9143325410815,80.7179636687439,TRUE,FALSE,TRUE,"defined",5
+"3","Ahexapterus_9_18um_Al1_Triangle_Vert5-3","vtkMRMLScalarVolumeNode1",23.8214099567068,20.7311998234258,80.6865346376912,TRUE,FALSE,TRUE,"defined",5
+"4","Ahexapterus_9_18um_Al1_Triangle_Vert5-4","vtkMRMLScalarVolumeNode1",24.0125603983042,20.7112007644464,80.7197317834021,TRUE,FALSE,TRUE,"defined",5
+"5","Ahexapterus_9_18um_Al1_Triangle_Vert5-5","vtkMRMLScalarVolumeNode1",24.5590364892365,20.3612172323058,80.7044100238432,TRUE,FALSE,TRUE,"defined",5
+"6","Ahexapterus_9_18um_Al1_Triangle_Vert5-6","vtkMRMLScalarVolumeNode1",24.4711513486559,20.7511988824053,80.8320913535003,TRUE,FALSE,TRUE,"defined",5
+"7","Ahexapterus_9_18um_Al1_Triangle_Vert5-7","vtkMRMLScalarVolumeNode1",24.0613986644603,20.3512177028161,80.6737665047255,TRUE,FALSE,TRUE,"defined",5
+"8","Ahexapterus_9_18um_Al1_Triangle_Vert5-8","vtkMRMLScalarVolumeNode1",23.9161774619759,20.5812068810799,81.3989964571777,TRUE,FALSE,TRUE,"defined",5
+"9","Ahexapterus_9_18um_Al1_Triangle_Vert5-9","vtkMRMLScalarVolumeNode1",24.4941339879942,20.2012247604702,81.3479239253149,TRUE,FALSE,TRUE,"defined",5
+"10","Ahexapterus_9_18um_Al1_Triangle_Vert5-10","vtkMRMLScalarVolumeNode1",24.2311626409024,20.4650400307773,81.0448115754057,TRUE,FALSE,TRUE,"defined",5
+"11","Ahexapterus_9_18um_Al1_Triangle_Vert5-11","vtkMRMLScalarVolumeNode1",24.8661327635002,19.6650776715989,82.0848179875643,TRUE,FALSE,TRUE,"defined",5
+"12","Ahexapterus_9_18um_Al1_Triangle_Vert5-12","vtkMRMLScalarVolumeNode1",24.8661327635002,19.6650776715989,82.0848179875643,TRUE,FALSE,TRUE,"defined",5

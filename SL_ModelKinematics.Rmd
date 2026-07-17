@@ -1,0 +1,207 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+These are the libraries you will need. RStudio should prompt you to install them
+when it opens, but if not you can type install.packages("readxl") foe each of 
+them in the console
+```{r}
+library(readxl)
+library(ggplot2)
+library(paletteer)
+library(stringr)
+library(dplyr)
+library(RColorBrewer)
+library(cowplot)
+library(ggpubr)
+```
+
+Black Background (run this chunk to save theme to your environment)
+```{r}
+theme_black = function(base_size = 12, base_family = "") {
+ 
+  theme_grey(base_size = base_size, base_family = base_family) %+replace%
+ 
+    theme(
+      # Specify axis options
+      axis.line = element_blank(),  
+      axis.text.x = element_text(size = base_size*0.8, color = "white", lineheight = 0.9),  
+      axis.text.y = element_text(size = base_size*0.8, color = "white", lineheight = 0.9),  
+      axis.ticks = element_line(color = "white", size  =  0.2),  
+      axis.title.x = element_text(size = base_size, color = "white", margin = margin(0, 10, 0, 0)),  
+      axis.title.y = element_text(size = base_size, color = "white", angle = 90, margin = margin(0, 10, 0, 0)),  
+      axis.ticks.length = unit(0.3, "lines"),   
+      # Specify legend options
+      legend.background = element_rect(color = NA, fill = "black"),  
+      legend.key = element_rect(color = "black",  fill = "black"),  
+      legend.key.size = unit(1.2, "lines"),  
+      legend.key.height = NULL,  
+      legend.key.width = NULL,      
+      legend.text = element_text(size = base_size*0.8, color = "white"),  
+      legend.title = element_text(size = base_size*0.8, face = "bold", hjust = 0, color = "white"),  
+      legend.position = "right",  
+      legend.text.align = NULL,  
+      legend.title.align = NULL,  
+      legend.direction = "vertical",  
+      legend.box = NULL, 
+      # Specify panel options
+      panel.background = element_rect(fill = "black", color  =  NA),  
+      panel.border = element_rect(fill = NA, color = "white"),  
+      panel.grid.major = element_blank(),  
+      panel.grid.minor = element_blank(),  
+      panel.margin = unit(0.5, "lines"),   
+      # Specify facetting options
+      strip.background = element_rect(fill = "grey30", color = "grey10"),  
+      strip.text.x = element_text(size = base_size*0.8, color = "white"),  
+      strip.text.y = element_text(size = base_size*0.8, color = "white",angle = -90),  
+      # Specify plot options
+      plot.background = element_rect(color = "black", fill = "black"),  
+      plot.title = element_text(size = base_size*1.2, color = "white"),  
+      plot.margin = unit(rep(1, 4), "lines")
+ 
+    )
+ 
+}
+```
+
+#Make sure the xlsx file is in the same folder as this R-file
+```{r}
+# lines of code that start with a # are comments. That means they are notes that
+# wont actually run. It's to help you remember what each line of code does
+
+# This reads in the data
+library(readxl)
+DLTdv8_Data <- read_excel("DLTdv8 Model Videos Data.xlsx")
+View(DLTdv8_Data)
+
+
+# This removes rows with missing data
+DLTdv8_Data <- na.omit(DLTdv8_Data)
+
+```
+
+#Plotting
+We are using the package ggplot for plotting. It requires two basic lines to
+start. The ggplot line, and the geometry line (marked below). The ggplot
+line tells the function which data you want to plot. Your data frame, x and y
+variables, groupings, etc. The geom tells it what tupe of plot you want (boxplot,
+scatter plot, violin plot, etc.)
+
+#Boxplots (Looking at position)
+```{r}
+# Frequency and Tail Amplitude
+ggplot(data = DLTdv8_Data, aes(x = Freq.Hz, y = Y1amp, color = Model))+ #ggplot line
+  geom_point(size = 3)+
+  theme_classic()+
+  scale_color_manual(values = c("#332288", "#117733", "#44AA99", "#88CCEE",
+                               "#DDCC77", "#CC6677", "#AA4499", "#882255"))+
+  xlab("Actuator Frequency")+
+  ylab("Tail Amplitude")+
+  geom_smooth(method="lm", se=FALSE) #geometry line
+ggsave("FreqvTailAmp.png", height = 11.55, width = 13.71, units = "in")
+
+# Frequency at Tail vs Head
+ggplot(data = DLTdv8_Data, aes(x = Y2freq, y = Y1freq, color = Model))+ #ggplot line
+  geom_point(size = 3)+
+  theme_classic()+
+  scale_color_manual(values = c("#332288", "#117733", "#44AA99", "#88CCEE",
+                               "#DDCC77", "#CC6677", "#AA4499", "#882255"))+
+  xlab("Head Frequency")+
+  ylab("Tail Frequency")+
+  geom_smooth(method="lm", se=FALSE) #geometry line
+ggsave("HeadvTailFreq.png", height = 11.55, width = 13.71, units = "in")
+
+# Frequency and Wavespeed
+ggplot(data = DLTdv8_Data, aes(x = Freq.Hz, y = waveSpeed, color = Model)) + #ggplot line
+  geom_point(size = 5) +
+  theme_classic()+
+  scale_color_manual(values = c("#332288", "#117733", "#44AA99", "#88CCEE",
+                               "#DDCC77", "#CC6677", "#AA4499", "#882255"))+
+  geom_line() #geometry line
+ggsave("WaveSpeedvFreq.png", height = 10, width = 15, units = "in")
+
+# Amplitude Ratio
+ggplot(data = DLTdv8_Data, aes(x = Y2amp, y = Y1amp, color = Model))+ #ggplot line
+  geom_point(size = 3)+
+  theme_classic()+
+  scale_color_manual(values = c("#332288", "#117733", "#44AA99", "#88CCEE",
+                               "#DDCC77", "#CC6677", "#AA4499", "#882255"))+
+  xlab("Head Amplitude")+
+  ylab("Tail Amplitude")+
+  geom_smooth(method="lm", se=FALSE) #geometry line
+ggsave("HeadTailAmplitudes.png", height = 11.55, width = 13.71, units = "in")
+
+
+```
+R Colors: https://sape.inf.usi.ch/quick-reference/ggplot2/colour
+R Color Palettes: https://r-graph-gallery.com/38-rcolorbrewers-palettes.html
+
+```{r}
+lm_eqn <- function(y,x){
+    m <- lm(y ~ x);
+    eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
+         list(a = format(unname(coef(m)[1]), digits = 2),
+              b = format(unname(coef(m)[2]), digits = 2),
+             r2 = format(summary(m)$r.squared, digits = 3)))
+    as.character(as.expression(eq));
+}
+```
+
+
+#Scatterplots ()
+```{r}
+# Separating by Density Distributions
+library(dplyr)
+AModels <- dplyr::filter(DLTdv8_Data, Model == "A")
+BModels <- dplyr::filter(DLTdv8_Data, Model == "B")
+CModels <- dplyr::filter(DLTdv8_Data, Model == "C")
+DModels <- dplyr::filter(DLTdv8_Data, Model == "D")
+EModels <- dplyr::filter(DLTdv8_Data, Model == "E")
+FModels <- dplyr::filter(DLTdv8_Data, Model == "F")
+GModels <- dplyr::filter(DLTdv8_Data, Model == "G")
+HModels <- dplyr::filter(DLTdv8_Data, Model == "H")
+
+# Amplitude Ratios
+amplitude_ratios <- DLTdv8_Data %>%
+  group_by(Model, Freq.Hz) %>%
+  summarise(
+    amp_ratio = Y1amp / Y2amp,
+    .groups = "drop"
+  )
+
+ggplot(amplitude_ratios,
+       aes(x = Freq.Hz, y = amp_ratio, color = Model)) +
+  geom_point(size = 3) +
+  geom_line() +
+  labs(x = "Frequency (Hz)",
+       y = "Amplitude Ratio (Tail / Head)") +
+  theme_black()
+ggsave("AmpRatiosvFreq.png", height = 5 , width = 10, units = "in")
+
+amplitude_ratios <- amplitude_ratios %>%
+  mutate(
+    model = factor(Model),
+    frequency = factor(Freq.Hz)
+  )
+
+amplitude_ratios$model <- factor(amplitude_ratios$model)
+
+
+# Do model and frequency predict amplitude ratios?
+lm1 <- lm(amp_ratio ~ model + Freq.Hz, data = amplitude_ratios)
+anova(lm1)
+
+# model-specific frequency response
+lm2 <- lm(amp_ratio ~ model * Freq.Hz, data = amplitude_ratios)
+anova(lm2)
+
+anova_model <- aov(amp_ratio ~ model, data = amplitude_ratios)
+summary(anova_model)
+
+tukey_models <- TukeyHSD(anova_model, "model")
+
+print(tukey_models)
+
+```
+

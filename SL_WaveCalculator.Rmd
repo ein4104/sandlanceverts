@@ -1,0 +1,236 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(readr)
+library(ggplot2)
+library(tidyr)
+library(pracma)
+library(signal) 
+```
+
+```{r}
+theme_black = function(base_size = 12, base_family = "") {
+ 
+  theme_grey(base_size = base_size, base_family = base_family) %+replace%
+ 
+    theme(
+      # Specify axis options
+      axis.line = element_blank(),  
+      axis.text.x = element_text(size = base_size*0.8, color = "white", lineheight = 0.9),  
+      axis.text.y = element_text(size = base_size*0.8, color = "white", lineheight = 0.9),  
+      axis.ticks = element_line(color = "white", size  =  0.2),  
+      axis.title.x = element_text(size = base_size, color = "white", margin = margin(0, 10, 0, 0)),  
+      axis.title.y = element_text(size = base_size, color = "white", angle = 90, margin = margin(0, 10, 0, 0)),  
+      axis.ticks.length = unit(0.3, "lines"),   
+      # Specify legend options
+      legend.background = element_rect(color = NA, fill = "black"),  
+      legend.key = element_rect(color = "black",  fill = "black"),  
+      legend.key.size = unit(1.2, "lines"),  
+      legend.key.height = NULL,  
+      legend.key.width = NULL,      
+      legend.text = element_text(size = base_size*0.8, color = "white"),  
+      legend.title = element_text(size = base_size*0.8, face = "bold", hjust = 0, color = "white"),  
+      legend.position = "right",  
+      legend.text.align = NULL,  
+      legend.title.align = NULL,  
+      legend.direction = "vertical",  
+      legend.box = NULL, 
+      # Specify panel options
+      panel.background = element_rect(fill = "black", color  =  NA),  
+      panel.border = element_rect(fill = NA, color = "white"),  
+      panel.grid.major = element_blank(),  
+      panel.grid.minor = element_blank(),  
+      panel.margin = unit(0.5, "lines"),   
+      # Specify facetting options
+      strip.background = element_rect(fill = "grey30", color = "grey10"),  
+      strip.text.x = element_text(size = base_size*0.8, color = "white"),  
+      strip.text.y = element_text(size = base_size*0.8, color = "white",angle = -90),  
+      # Specify plot options
+      plot.background = element_rect(color = "black", fill = "black"),  
+      plot.title = element_text(size = base_size*1.2, color = "white"),  
+      plot.margin = unit(rep(1, 4), "lines")
+    )
+}
+```
+
+# Read in Data
+```{r}
+setwd("/Users/elynorein/Desktop/R_ModelVideoPts")
+xypts <- read_csv("Set2_H_Freq4_xypts.csv")
+xypts <- na.omit(xypts)
+colnames(xypts) <- c("X1", "Y1", "X2", "Y2")
+
+# Use Frame rate to calculate a time vector
+fps <- 30  
+xypts$time <- (0:(nrow(xypts)-1)) / fps
+
+# Spatial distance between head and tail points (length of the model, used later)
+distance <- 0.235  # replace with actual length of the models
+```
+
+```{r}
+# Smooth any weird bumps
+xypts$Y1_smooth <- sgolayfilt(xypts$Y1, p = 3, n = 11)  # polynomial 3, window 11
+xypts$Y2_smooth <- sgolayfilt(xypts$Y2, p = 3, n = 11)
+
+# Detrend Y1
+fit1 <- lm(Y1_smooth ~ time, data = xypts)   # Fit a linear trend
+xypts$Y1_det <- xypts$Y1_smooth - predict(fit1)  # Subtract the trend
+
+# Detrend Y2
+fit2 <- lm(Y2_smooth ~ time, data = xypts)
+xypts$Y2_det <- xypts$Y2_smooth - predict(fit2)
+
+```
+
+Plot to see if things look ok
+```{r}
+ggplot(xypts, aes(x = time)) +
+  geom_point(aes(y = Y1_det), color = "blue", shape = 16) +
+  geom_line(aes(y = Y1_det), color = "blue") +
+  geom_point(aes(y = Y2_det), color = "red", shape = 17) +
+  geom_line(aes(y = Y2_det), color = "red") +
+  labs(x = "Time (s)", y = "Detrended Y") +
+  theme_black()
+
+ggplot(xypts, aes(x = time)) +
+  geom_line(aes(y = Y1_det), color = "blue") +
+  geom_point(aes(y = Y1_det), color = "blue", shape = 16) +
+  geom_line(aes(y = Y2_det), color = "red") +
+  geom_point(aes(y = Y2_det), color = "red", shape = 17) +
+  labs(x = "Time (s)", y = "Detrended Y") +
+  coord_cartesian(xlim = c(1, 20)) +
+  theme_black()
+
+```
+
+Y1 Amplitude
+
+```{r}
+# Find peaks for Y1
+peaks_Y1 <- findpeaks(xypts$Y1_det, minpeakdistance = 5) # minpeakdistance in frames
+
+# Find troughs for Y1 (invert the signal)
+troughs_Y1 <- findpeaks(-xypts$Y1_det, minpeakdistance = 5)
+troughs_Y1[,1] <- -troughs_Y1[,1]  # revert to original values
+
+# Calculate amplitudes for each cycle (peak - closest trough)
+
+amplitudes_Y1 <- rep(NA, nrow(peaks_Y1))  
+
+for(i in 1:nrow(peaks_Y1)){
+  peak_idx <- peaks_Y1[i, 2]
+  valid <- troughs_Y1[troughs_Y1[,2] < peak_idx, , drop = FALSE] # troughs BEFORE this peak
+  if(nrow(valid) == 0) next # if none exist, skip (leave NA)
+  prev_trough_idx <- valid[which.max(valid[,2]), 2] # closest previous trough = one with max index
+  peak_val   <- peaks_Y1[i, 1]
+  trough_val <- troughs_Y1[troughs_Y1[,2] == prev_trough_idx, 1]
+  amplitudes_Y1[i] <- (peak_val - trough_val) / 2
+}
+
+# Average amplitude
+avg_amp_Y1 <- mean(amplitudes_Y1, na.rm = TRUE)
+
+# Time of each peak (in seconds)
+peaks_Y1 <- peaks_Y1[order(peaks_Y1[, 2]), ]
+peak_times_Y1 <- xypts$time[peaks_Y1[,2]]
+
+# Period = average time between peaks
+period_Y1 <- mean(diff(peak_times_Y1), na.rm = TRUE)
+
+# Frequency = 1 / period
+freq_Y1 <- 1 / period_Y1
+
+```
+
+Plot to make sure things look ok
+```{r}
+# Create small data frames for peaks and troughs
+peaks_df <- data.frame(time = xypts$time[peaks_Y1[,2]], Y = peaks_Y1[,1])
+troughs_df <- data.frame(time = xypts$time[troughs_Y1[,2]], Y = troughs_Y1[,1])
+
+# Plot
+ggplot(xypts, aes(x = time, y = Y1_det)) +
+  geom_line(color = "blue") +
+  geom_point(data = peaks_df, aes(x = time, y = Y), color = "red", size = 2) +
+  geom_point(data = troughs_df, aes(x = time, y = Y), color = "green", size = 2) +
+  labs(x = "Time (s)", y = "Detrended Y1", 
+       title = "Y1 with Detected Peaks (red) and Troughs (green)") +
+  theme_black()
+
+```
+
+
+```{r}
+# Find peaks for Y2
+peaks_Y2 <- findpeaks(xypts$Y2_det, minpeakdistance = 5) # minpeakdistance in frames
+# peaks_Y1[,1] = peak heights, peaks_Y1[,2] = indices
+
+# Find troughs for Y1 (invert the signal)
+troughs_Y2 <- findpeaks(-xypts$Y2_det, minpeakdistance = 5)
+troughs_Y2[,1] <- -troughs_Y2[,1]  # revert to original values
+
+# Calculate amplitudes for each cycle (peak - closest trough)
+# Simplest approach: match peaks with closest previous trough
+amplitudes_Y2 <- rep(NA, nrow(peaks_Y2))  
+for(i in 1:nrow(peaks_Y2)){
+  peak_idx <- peaks_Y2[i, 2]
+  valid <- troughs_Y2[troughs_Y2[,2] < peak_idx, , drop = FALSE] # troughs BEFORE this peak
+  if(nrow(valid) == 0) next # if none exist, skip (leave NA)
+  prev_trough_idx <- valid[which.max(valid[,2]), 2] # closest previous trough = one with max index
+  peak_val   <- peaks_Y2[i, 1]
+  trough_val <- troughs_Y2[troughs_Y2[,2] == prev_trough_idx, 1]
+  amplitudes_Y2[i] <- (peak_val - trough_val) / 2
+}
+
+# Average amplitude
+avg_amp_Y2 <- mean(amplitudes_Y2, na.rm = TRUE)
+
+# Time of each peak (in seconds)
+peaks_Y2 <- peaks_Y2[order(peaks_Y2[, 2]), ]
+peak_times_Y2 <- xypts$time[peaks_Y2[,2]]
+
+# Period = average time between peaks
+period_Y2 <- mean(diff(peak_times_Y2), na.rm = TRUE)
+
+# Frequency = 1 / period
+freq_Y2 <- 1 / period_Y2
+```
+
+Wavespeed Between Y1 and Y2
+```{r}
+
+# Cross-correlation between head (Y2) and tail (Y1)
+ccf_result <- ccf(xypts$Y2_smooth, xypts$Y1_smooth, plot = FALSE)
+
+# Find the lag with maximum correlation
+lag_index <- which.max(ccf_result$acf)
+
+# Time lag in seconds
+time_lag <- ccf_result$lag[lag_index] / 30  # divide by frame rate
+
+# Wave speed (m/s)
+wave_speed <- distance / abs(time_lag)
+
+```
+
+Put into a table to copy paste more easily
+```{r}
+
+table_Y1 <- data.frame(
+  Y1period = period_Y1,
+  Y1freq   = freq_Y1,
+  Y1amp = avg_amp_Y1,
+  Y2period = period_Y2,
+  Y2freq   = freq_Y2,
+  Y2amp = avg_amp_Y2,
+  waveSpeed = wave_speed
+)
+
+table_Y1
+
+```
+

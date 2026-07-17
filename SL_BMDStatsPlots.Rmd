@@ -1,0 +1,227 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+These are the libraries you will need. RStudio should prompt you to install them
+when it opens, but if not you can type install.packages("readxl") foe each of 
+them in the console
+```{r}
+library(readxl)
+library(ggplot2)
+library(stringr)
+library(dplyr)
+library(RColorBrewer)
+library(cowplot)
+library(ggpubr)
+install.packages("colorBlindness")
+library(colorBlindness)
+```
+
+Black Background (run this chunk to save theme to your environment)
+```{r}
+# theme_black = function(base_size = 12, base_family = "") {
+#  
+#   theme_grey(base_size = base_size, base_family = base_family) %+replace%
+#  
+#     theme(
+#       # Specify axis options
+#       axis.line = element_blank(),  
+#       axis.text.x = element_text(size = base_size*0.8, color = "white", lineheight = 0.9),  
+#       axis.text.y = element_text(size = base_size*0.8, color = "white", lineheight = 0.9),  
+#       axis.ticks = element_line(color = "white", size  =  0.2),  
+#       axis.title.x = element_text(size = base_size, color = "white", margin = margin(0, 10, 0, 0)),  
+#       axis.title.y = element_text(size = base_size, color = "white", angle = 90, margin = margin(0, 10, 0, 0)),  
+#       axis.ticks.length = unit(0.3, "lines"),   
+#       # Specify legend options
+#       legend.background = element_rect(color = NA, fill = "black"),  
+#       legend.key = element_rect(color = "black",  fill = "black"),  
+#       legend.key.size = unit(1.2, "lines"),  
+#       legend.key.height = NULL,  
+#       legend.key.width = NULL,      
+#       legend.text = element_text(size = base_size*0.8, color = "white"),  
+#       legend.title = element_text(size = base_size*0.8, face = "bold", hjust = 0, color = "white"),  
+#       legend.position = "right",  
+#       legend.text.align = NULL,  
+#       legend.title.align = NULL,  
+#       legend.direction = "vertical",  
+#       legend.box = NULL, 
+#       # Specify panel options
+#       panel.background = element_rect(fill = "black", color  =  NA),  
+#       panel.border = element_rect(fill = NA, color = "white"),  
+#       panel.grid.major = element_blank(),  
+#       panel.grid.minor = element_blank(),  
+#       panel.margin = unit(0.5, "lines"),   
+#       # Specify facetting options
+#       strip.background = element_rect(fill = "grey30", color = "grey10"),  
+#       strip.text.x = element_text(size = base_size*0.8, color = "white"),  
+#       strip.text.y = element_text(size = base_size*0.8, color = "white",angle = -90),  
+#       # Specify plot options
+#       plot.background = element_rect(color = "black", fill = "black"),  
+#       plot.title = element_text(size = base_size*1.2, color = "white"),  
+#       plot.margin = unit(rep(1, 4), "lines")
+#  
+#     )
+#  
+# }
+```
+
+#Make sure the xlsx file is in the same folder as this R-file
+```{r}
+# lines of code that start with a # are comments. That means they are notes that
+# wont actually run. It's to help you remember what each line of code does
+
+# This reads in the data
+BMDData <- read_excel("BMDEstimation.xlsx", skip = 1)
+
+# This removes rows with missing data
+BMDData <- na.omit(BMDData)
+
+# This breaks your Vert column up by Position and number
+verts = as.data.frame(str_split_fixed(BMDData$Vert, ' ', 2))
+BMDData$VertPos = verts$V1
+BMDData$VertNum = verts$V2
+
+# This puts the data in "front-middle-back" order instead of alphabetical order
+BMDData <- mutate(BMDData, VertPos = factor(VertPos, levels=c("Front", "Middle", "Back")))
+
+BMDData <- mutate(BMDData, Vert = factor(Vert, levels=c("Front 1","Front 2","Front 3","Front 4","Front 5", "Middle 1","Middle 2","Middle 3","Middle 4","Middle 5","Back 1","Back 2","Back 3","Back 4","Back 5")))
+```
+
+#Plotting
+We are using the package ggplot for plotting. It requires two basic lines to
+start. The ggplot line, and the geometry line (marked below). The ggplot
+line tells the functuon which data your want to plot. Your data frame, x and y
+variables, groupings, etc. The geom tells it what tupe of plot you want (boxplot,
+scatter plot, violin plot, etc.)
+
+#Boxplots (Looking at position)
+```{r}
+ggplot(data = BMDData, aes(x = VertPos, y = BMD))+ #ggplot line
+  geom_boxplot() #geometry line
+  
+# Boxplot by position
+my_comparisons <- list( c("Front", "Middle"), c("Middle", "Back"), c("Front", "Back") )
+
+bmdbox <- ggplot(data = BMDData, aes(x = VertPos, y = BMD, fill = VertPos))+
+  geom_boxplot()+ 
+  scale_fill_manual(values = c("#E69F00", "#56B4E9", "#9955BB"))+ # this adds a color palette
+  scale_x_discrete(labels = c("Front" = "Anterior", "Middle", "Back"= "Posterior"))+
+  xlab("Position")+
+  ylab("% Hydroxyapatite")+
+  ylim(22,72)+
+  theme_classic()+
+  theme(legend.position="none")+
+  stat_compare_means(comparisons = my_comparisons, label.y = c(58, 62, 66), color = "black", size = 2.5)
+show(bmdbox)
+# ggsave("BMDBox.png", height = 4, width = 4, units = "in")
+
+cvdPlot()
+
+# Boxplot by position and number
+# ggplot(data = BMDData, aes(x = VertPos, y = BMD, fill = VertNum))+
+#   geom_boxplot()+
+#   theme_classic()+
+#   scale_fill_brewer(palette = "GnBu")
+
+```
+R Colors: https://sape.inf.usi.ch/quick-reference/ggplot2/colour
+R Color Palettes: https://r-graph-gallery.com/38-rcolorbrewers-palettes.html
+
+```{r}
+lm_eqn <- function(y,x){
+    m <- lm(y ~ x);
+    eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
+         list(a = format(unname(coef(m)[1]), digits = 2),
+              b = format(unname(coef(m)[2]), digits = 2),
+             r2 = format(summary(m)$r.squared, digits = 3)))
+    as.character(as.expression(eq));
+}
+```
+
+
+#Scatterplots (adding body length)
+```{r}
+# This creates data subsets by position
+Front <- filter(BMDData, VertPos == "Front")
+Middle <- filter(BMDData, VertPos == "Middle")
+Back <- filter(BMDData, VertPos == "Back")
+
+frontModel = lm(BMD ~ Length, data = Front)
+anova(frontModel)
+
+middleModel = lm(BMD ~ Length, data = Middle)
+anova(middleModel)
+
+backModel = lm(BMD ~ Length, data = Back)
+anova(backModel)
+
+print(lm_eqn(Front$BMD, Front$Length))
+
+# one scatter plot of all positions
+
+megaplot <- ggplot(data = BMDData, aes(x = Length, y = BMD, color = VertPos))+
+  geom_point(shape = 1, size = 2)+
+  scale_color_manual(values = c("#E69F00", "#56B4E9", "#9955BB"))+  # colorblind-friendly
+  geom_smooth(method = "lm", se = FALSE, color = "black")+
+  theme_classic()
+show(megaplot)
+
+# this creates 3 scatter plots (p1, p2, p3) one for each position
+p1 <- ggplot(data = Front, aes(x = Length, y = BMD))+
+  geom_point(color = "#E69F00", shape=1, size = 2)+
+  ylim(min(BMDData$BMD), max(BMDData$BMD)+2)+ # this sets the upper and lower limit of the y-axis
+  xlab("")+
+  ylab("")+ # this lables your y-axis
+  geom_smooth(method = "lm", se = FALSE, color = "black")+theme_classic()+
+  # geom_text(size = 3.5, x = 75, y = 72, label = lm_eqn(Front$BMD, Front$Length), parse = TRUE, color = "black")+
+  # ggtitle("")
+show(p1)
+
+p2 <- ggplot(data = Middle, aes(x = Length, y = BMD))+
+  geom_point(color = "#56B4E9", shape=1, size = 2)+
+  theme_classic()+
+  ylim(min(BMDData$BMD), max(BMDData$BMD)+2)+
+  xlab("")+
+  ylab("")+
+  geom_smooth(method = "lm", se = FALSE, color = "black")+
+  # geom_text(size = 3.5, x = 75, y = 72, label = lm_eqn(Middle$BMD, Middle$Length), parse = TRUE, color = "black")
+  # ggtitle("")
+
+p3 <- ggplot(data = Back, aes(x = Length, y = BMD))+
+  geom_point(color = "#9955BB", shape=1, size = 2)+
+  theme_classic()+
+  ylim(min(BMDData$BMD), max(BMDData$BMD)+2)+
+  xlab("")+
+  ylab("")+
+  geom_smooth(method = "lm", se = FALSE, color = "black")+
+  # geom_text(size= 3.5, x = 75, y = 72, label = lm_eqn(Back$BMD, Back$Length), parse = TRUE, color = "black")
+  # ggtitle("")
+
+# the plot_grid function allows your to put a bunch of plots together
+# plot_grid(p1,p2,p3, nrow = 3)
+plot_grid(bmdbox,p1,p2,p3, nrow = 4)
+# ggsave("BMDScatterBox.png", height = 12, width = 3, units = "in")
+
+```
+
+Very simple statistics
+```{r}
+# Does position and length predict BMD?
+boneModel <- lm(BMD ~ VertPos + Length, data = BMDData)
+anova(boneModel)
+
+#Which positions are different from each-other
+lengthModel1 <- pairwise.t.test(BMDData$BMD, BMDData$VertPos, p.adj = "bonf")
+lengthModel1
+
+boneModelAnt <- lm(BMD ~ Length, data = Front)
+anova(boneModelAnt)
+
+boneModelMid <- lm(BMD ~ Length, data = Middle)
+anova(boneModelMid)
+
+boneModelPos <- lm(BMD ~ Length, data = Back)
+anova(boneModelPos)
+```
+

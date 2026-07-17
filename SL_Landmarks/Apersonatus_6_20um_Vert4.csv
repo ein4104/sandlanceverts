@@ -1,0 +1,13 @@
+"id","label","associatedNodeID","pos_x","pos_y","pos_z","selected","locked","visibility","positionStatus","vert_number"
+"1","Apersonatus_6_20um_Vert4_Landmarks-1","vtkMRMLScalarVolumeNode1",13.3604234989712,20.9850042888048,14.9213032531738,TRUE,FALSE,TRUE,"defined",4
+"2","Apersonatus_6_20um_Vert4_Landmarks-2","vtkMRMLScalarVolumeNode1",12.7415755861207,20.487973043732,16.1895355987549,TRUE,FALSE,TRUE,"defined",4
+"3","Apersonatus_6_20um_Vert4_Landmarks-3","vtkMRMLScalarVolumeNode1",12.952149551281,20.2773990785717,16.1895355987549,TRUE,FALSE,TRUE,"defined",4
+"4","Apersonatus_6_20um_Vert4_Landmarks-4","vtkMRMLScalarVolumeNode1",12.663669933355,20.2191552158678,16.1759894016535,TRUE,FALSE,TRUE,"defined",4
+"5","Apersonatus_6_20um_Vert4_Landmarks-5","vtkMRMLScalarVolumeNode1",12.2084202275234,19.7980072855472,16.2836116375135,TRUE,FALSE,TRUE,"defined",4
+"6","Apersonatus_6_20um_Vert4_Landmarks-6","vtkMRMLScalarVolumeNode1",12.2359820196339,20.2191552158678,16.259987244276,TRUE,FALSE,TRUE,"defined",4
+"7","Apersonatus_6_20um_Vert4_Landmarks-7","vtkMRMLScalarVolumeNode1",12.6822205585658,19.7935269884161,16.2153633903828,TRUE,FALSE,TRUE,"defined",4
+"8","Apersonatus_6_20um_Vert4_Landmarks-8","vtkMRMLScalarVolumeNode1",12.0968605927904,20.1743522445571,15.5066315932555,TRUE,FALSE,TRUE,"defined",4
+"9","Apersonatus_6_20um_Vert4_Landmarks-9","vtkMRMLScalarVolumeNode1",12.5457240643043,19.7487240171054,15.4593828067804,TRUE,FALSE,TRUE,"defined",4
+"10","Apersonatus_6_20um_Vert4_Landmarks-10","vtkMRMLScalarVolumeNode1",12.3786715185041,19.9816994679211,15.8452478963274,TRUE,FALSE,TRUE,"defined",4
+"11","Apersonatus_6_20um_Vert4_Landmarks-11","vtkMRMLScalarVolumeNode1",11.2095736408106,18.8648535191036,15.7526513365195,TRUE,FALSE,TRUE,"defined",4
+"11","Apersonatus_6_20um_Vert4_Landmarks-12","vtkMRMLScalarVolumeNode1",11.2095736408106,18.8648535191036,15.7526513365195,TRUE,FALSE,TRUE,"defined",4
