@@ -20,57 +20,10 @@ library("cowplot")
 library("ggpubr")
 ```
 
-```{r Background Theme}
-# theme_black = function(base_size = 12, base_family = "") {
-# 
-#   theme_grey(base_size = base_size, base_family = base_family) %+replace%
-# 
-#     theme(
-#       # Specify axis options
-#       axis.line = element_blank(),
-#       axis.text.x = element_text(size = base_size*0.8, color = "white", lineheight = 0.9),
-#       axis.text.y = element_text(size = base_size*0.8, color = "white", lineheight = 0.9),
-#       axis.ticks = element_line(color = "white", size  =  0.2),
-#       axis.title.x = element_text(size = base_size, color = "white", margin = margin(0, 10, 0, 0)),
-#       axis.title.y = element_text(size = base_size, color = "white", angle = 90, margin = margin(0, 10, 0, 0)),
-#       axis.ticks.length = unit(0.3, "lines"),
-#       # Specify legend options
-#       legend.background = element_rect(color = NA, fill = "black"),
-#       legend.key = element_rect(color = "black",  fill = "black"),
-#       legend.key.size = unit(1.2, "lines"),
-#       legend.key.height = NULL,
-#       legend.key.width = NULL,
-#       legend.text = element_text(size = base_size*0.8, color = "white"),
-#       legend.title = element_text(size = base_size*0.8, face = "bold", hjust = 0, color = "white"),
-#       legend.position = "right",
-#       legend.text.align = NULL,
-#       legend.title.align = NULL,
-#       legend.direction = "vertical",
-#       legend.box = NULL,
-#       # Specify panel options
-#       panel.background = element_rect(fill = "black", color  =  NA),
-#       panel.border = element_rect(fill = NA, color = "white"),
-#       panel.grid.major = element_blank(),
-#       panel.grid.minor = element_blank(),
-#       panel.margin = unit(0.5, "lines"),
-#       # Specify facetting options
-#       strip.background = element_rect(fill = "grey30", color = "grey10"),
-#       strip.text.x = element_text(size = base_size*0.8, color = "white"),
-#       strip.text.y = element_text(size = base_size*0.8, color = "white",angle = -90),
-#       # Specify plot options
-#       plot.background = element_rect(color = "black", fill = "black"),
-#       plot.title = element_text(size = base_size*1.2, color = "white"),
-#       plot.margin = unit(rep(1, 4), "lines")
-# 
-#     )
-# 
-# }
-
-```
-
 ```{r Reading in files/creating landmarks}
+# change your file path to your working directory
 setwd("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks")
-files <- as.data.frame(dir(pattern = ".csv", full.names = TRUE, ignore.case = TRUE))
+files <- as.data.frame(dir(pattern = ".csv", full.names = TRUE, ignore.case = TRUE)) # reads in csvs from your wd
 names(files)[1] <- 'files'
 files$files<- as.character(files$files)
 samples = files$files
@@ -81,7 +34,7 @@ l = nrow(test) # number of landmarks
 d = 3 # number of dimensions (2D or 3D)
 s = length(samples) # number of specimens
 
-LMs = array(dim=c(l, d, s)) 
+LMs = array(dim=c(l, d, s)) # 3 dimensional landmarks array
 lables = test$label
 vert_label <- as.factor(sub(".*_(Vert\\d+)(?:_Landmarks)?\\.csv$", "\\1", files$files)) #define some groups for plotting
 
@@ -100,25 +53,28 @@ for (i in 1:s) {
 # Label the rows with the file names
 dimnames(LMs) = list(lables, c("x", "y", "z"), samples)
 
-VertebraeLandmarkData <- read_csv("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/VertebraeLandmarkData/VertebraeLandmarkData.csv")
+VertebraeLandmarkData <- read_csv("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/VertebraeLandmarkData/VertebraeLandmarkData.csv") # reads in information about landmark data, including SL of fish
 files$FileName <- files$file
 merged <- merge(files, VertebraeLandmarkData, by = "FileName", all.x = TRUE)
 
 # Links
-VertLinks <- read.csv("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/VertLinks/VertLinks.csv", header = FALSE)
+VertLinks <- read.csv("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/VertLinks/VertLinks.csv", header = FALSE) #reads in vertebrae links for plotting mean shape
 ```
 
 ```{r Procrustes Superimposition/PCA}
 # run Procrustes Superimposition
 gpa <- gpagen(LMs)
 
+# plot of all specimens' landmarks
 plotAllSpecimens(gpa$coords, links = VertLinks, mean = TRUE)
 
+# plot of all specimens ordered by distance from mean shape
 plotOutliers(gpa$coords, inspect.outliers = T)
 
+# principal component analysis using ordinary least-squares
 PCA <- gm.prcomp(gpa$coords)
-cex_values <- scales::rescale(merged$SL, to = c(0.5, 2))  # from the 'scales' package
-plot(PCA, pch = 21, bg = vert_label, cex = cex_values)
+cex_values <- scales::rescale(merged$SL, to = c(0.5, 2))  # from the 'scales' package, by SL of fish
+plot(PCA, pch = 21, bg = vert_label, cex = cex_values) 
 legend("topleft", pch = 22, pt.bg = unique(vert_label), legend = unique(vert_label), horiz = FALSE)
 
 # Extract percent variance explained
@@ -252,7 +208,7 @@ mtext("PC1 - Max.")
 PC <- PCA$x[,2]
 preds <- shape.predictor(gpa$coords, x= PC, Intercept = FALSE, 
                          pred1 = min(PC),  
-                         pred2 = max(PC)) # PC 1 extremes, more technically
+                         pred2 = max(PC)) # PC 2 extremes, more technically
 par(mfrow=c(1, 2))
 plotRefToTarget(ref, preds$pred1, links = VertLinks)
 mtext("PC2 - Min.")
@@ -263,12 +219,80 @@ mtext("PC2 - Max.")
 PC <- PCA$x[,3]
 preds <- shape.predictor(gpa$coords, x= PC, Intercept = FALSE, 
                          pred1 = min(PC),  
-                         pred2 = max(PC)) # PC 1 extremes, more technically
+                         pred2 = max(PC)) # PC 3 extremes, more technically
 par(mfrow=c(1, 2))
 plotRefToTarget(ref, preds$pred1, links = VertLinks)
 mtext("PC3 - Min.")
 plotRefToTarget(ref, preds$pred2, links = VertLinks)
 mtext("PC3 - Max.")
+
+```
+
+```{r allometry testing}
+# ---- 1. Explicit allometry test ----
+# gpa$Csize should already exist from gpagen()
+logCS <- log(gpa$Csize)
+
+fit.allometry <- procD.lm(gpa$coords ~ logCS, print.progress = FALSE)
+anova(fit.allometry)$table   # gives F, Z (effect size), and P from RRPP
+
+
+# ---- 2. Visualize the allometric trend ----
+# Regression score (Drake & Klingenberg 2008) - single axis summarizing shape~size covariation
+plot(fit.allometry, type = "regression", predictor = logCS, reg.type = "RegScore")
+
+# ---- 3. Shape predictions along the allometric trajectory (not PCA!) ----
+preds.allometry <- shape.predictor(fit.allometry$GM$fitted, x = logCS, Intercept = TRUE,
+                                    predmin = min(logCS),
+                                    predmax = max(logCS))
+
+par(mfrow = c(1, 2))
+plotRefToTarget(ref, preds.allometry$predmin, links = VertLinks)
+mtext("Allometry - Small")
+plotRefToTarget(ref, preds.allometry$predmax, links = VertLinks)
+mtext("Allometry - Large")
+
+# ---- 1. Read in the external size file ----
+head(VertebraeLandmarkData)
+# e.g. columns might look like: specimen_ID, SL
+
+# ---- 2. Get specimen names from your GPA object ----
+# gpagen() typically preserves specimen names as the 3rd dimension names of $coords
+specimen_names <- dimnames(gpa$coords)[[3]]
+head(specimen_names)
+
+# ---- 3. Match/reorder the size data to your specimen order ----
+# This assumes size_data$specimen_ID uses the same naming convention as specimen_names
+match_idx <- match(specimen_names, VertebraeLandmarkData$FileName)
+
+# Check for any unmatched specimens BEFORE proceeding
+if (any(is.na(match_idx))) {
+  warning("These specimens have no matching SL entry: ",
+          paste(specimen_names[is.na(match_idx)], collapse = ", "))
+}
+
+SL <- VertebraeLandmarkData$SL[match_idx]
+logSL <- log(SL)
+
+# ---- 4. Allometry test using standard length ----
+fit.SL <- procD.lm(gpa$coords ~ logSL, print.progress = FALSE)
+anova(fit.SL)$table
+range(logSL)
+hist(logSL)
+
+# ---- 5. Visualize ----
+plot(fit.SL, type = "regression", predictor = logSL, reg.type = "RegScore")
+
+# ---- 6. Shape predictions across the SL range ----
+preds.SL <- shape.predictor(fit.SL$GM$fitted, x = logSL, Intercept = TRUE,
+                             predmin = min(logSL),
+                             predmax = max(logSL))
+
+par(mfrow = c(1, 2))
+plotRefToTarget(ref, preds.SL$predmin, links = VertLinks)
+mtext("SL - Small")
+plotRefToTarget(ref, preds.SL$predmax, links = VertLinks)
+mtext("SL - Large")
 ```
 
 ```{r save PC3 min and max as pictures}
@@ -282,73 +306,6 @@ plotRefToTarget(ref, preds$pred2, links = VertLinks)
 mtext("PC3 - Max.")
 dev.off()
 ```
-
-```{r inverse color plots}
-# Links
-VertLinks <- read.csv("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/VertLinks/VertLinks.csv", header = FALSE)
-
-# Set black background globally
-par(bg = "black", col.axis = "white", col.lab = "white", col.main = "white", col.sub = "white", fg = "white")
-
-#Shape Predictions - PC1
-PC <- PCA$x[,1]
-preds <- shape.predictor(gpa$coords, x = PC, Intercept = FALSE,
-                         pred1 = min(PC),
-                         pred2 = max(PC))
-par(mfrow = c(1, 2), bg = "black", fg = "white")
-plotRefToTarget(ref, preds$pred1, links = VertLinks,
-                gridPars = gridPar(pt.bg = "white", pt.size = 1.5,
-                                   link.col = "white", tar.link.col = "white",
-                                   grid.col = "white", tar.pt.bg = "white"))
-mtext("PC1 - Min.", col = "white")
-plotRefToTarget(ref, preds$pred2, links = VertLinks,
-                gridPars = gridPar(pt.bg = "white", pt.size = 1.5,
-                                   link.col = "white", tar.link.col = "white",
-                                   grid.col = "white", tar.pt.bg = "white"))
-mtext("PC1 - Max.", col = "white")
-
-#Shape Predictions - PC2
-PC <- PCA$x[,2]
-preds <- shape.predictor(gpa$coords, x = PC, Intercept = FALSE,
-                         pred1 = min(PC),
-                         pred2 = max(PC))
-par(mfrow = c(1, 2), bg = "black", fg = "white")
-plotRefToTarget(ref, preds$pred1, links = VertLinks,
-                gridPars = gridPar(pt.bg = "white", pt.size = 1.5,
-                                   link.col = "white", tar.link.col = "white",
-                                   grid.col = "white", tar.pt.bg = "white"))
-mtext("PC2 - Min.", col = "white")
-plotRefToTarget(ref, preds$pred2, links = VertLinks,
-                gridPars = gridPar(pt.bg = "white", pt.size = 1.5,
-                                   link.col = "white", tar.link.col = "white",
-                                   grid.col = "white", tar.pt.bg = "white"))
-mtext("PC2 - Max.", col = "white")
-
-#Shape Predictions - PC3
-PC <- PCA$x[,3]
-preds <- shape.predictor(gpa$coords, x = PC, Intercept = FALSE,
-                         pred1 = min(PC),
-                         pred2 = max(PC))
-# Saving PC3 Extremes
-png("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/PC3_Min.png", width = 800, height = 600, bg = "white")
-par(bg = "white", fg = "black")
-plotRefToTarget(ref, preds$pred1, links = VertLinks,
-                gridPars = gridPar(pt.bg = "black", pt.size = 1.5,
-                                   link.col = "black", tar.link.col = "black",
-                                   grid.col = "black", tar.pt.bg = "black"))
-mtext("PC3 - Min.", col = "black")
-dev.off()
-
-png("/Users/elynorein/Documents/GitHub/sandlanceverts/SL_Landmarks/PC3_Max.png", width = 800, height = 600, bg = "white")
-par(bg = "white", fg = "black")
-plotRefToTarget(ref, preds$pred2, links = VertLinks,
-                gridPars = gridPar(pt.bg = "black", pt.size = 1.5,
-                                   link.col = "black", tar.link.col = "black",
-                                   grid.col = "black", tar.pt.bg = "black"))
-mtext("PC3 - Max.", col = "black")
-dev.off()
-```
-
 ```{r PCA Plots}
 pca_df <- data.frame(
   PC1 = pc_scores[, 1],
@@ -424,5 +381,4 @@ combined_plot <- PC1v2plot / PC2v3plot +
 
 ggsave("GMPCAPlotsCombined.png", plot = combined_plot, width = 6, height = 7.5, units = "in")
 ```
-
 
